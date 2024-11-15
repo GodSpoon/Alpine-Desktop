@@ -1,0 +1,43 @@
+name: Build Alpine Desktop ISO
+
+on:
+  push:
+    paths:
+      - 'config/alpine-desktop.conf'  # Trigger on config file changes
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Alpine Linux environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y alpine-make-vm-image xorriso syslinux-utils mtools
+
+      - name: Build ISO
+        run: |
+          mkdir -p build
+          sudo ./scripts/build-iso.sh
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpine-desktop
+          path: build/*.iso
+          retention-days: 5
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/*.iso
+          tag_name: v${{ github.run_number }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
